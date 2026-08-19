@@ -1,7 +1,7 @@
 # Enterprise AI Risk Decision Platform
 
 A production-oriented, industry-neutral reference implementation for **governed machine-learning risk decisions**. It demonstrates the engineering path from a data-science proof of concept to a reusable AI service with model packaging, API serving, batch inference, explainability, audit logging, monitoring, drift checks, CI/CD, containers and Kubernetes.
-
+<img width="1448" height="1086" alt="Enterprise AI Risk Decision Platform" src="https://github.com/user-attachments/assets/da2bd1dc-9b69-426c-9756-320a5a0d3a81" />
 > **Portfolio / demonstration system:** the included dataset is entirely synthetic and the decision labels are simulated. This project is not a credit, fraud, AML, customer eligibility, or regulatory decision system and must not be used for real-world financial decisions without domain-specific validation, controls, legal review and model-risk governance.
 
 ## Architecture
