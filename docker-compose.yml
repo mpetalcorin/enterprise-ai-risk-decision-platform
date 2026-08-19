@@ -1,0 +1,113 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: riskdb
+      POSTGRES_USER: risk_user
+      POSTGRES_PASSWORD: risk_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U risk_user -d riskdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mlflow:
+    build: .
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://risk_user:risk_password@postgres:5432/riskdb
+      --serve-artifacts
+      --artifacts-destination /app/mlartifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/app/mlartifacts
+
+  trainer:
+    build: .
+    command: >
+      sh -c "python -m risk_platform.cli generate --rows 12000 --output /app/data/transactions.csv &&
+             python -m risk_platform.cli train --data /app/data/transactions.csv --backend xgboost --output /app/models/risk_model.joblib"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT: enterprise-risk-platform
+      MLFLOW_REGISTERED_MODEL: enterprise-risk-model
+    depends_on:
+      - mlflow
+    volumes:
+      - model_artifacts:/app/models
+      - training_data:/app/data
+
+  api:
+    build: .
+    environment:
+      APP_ENV: production
+      MODEL_PATH: /app/models/risk_model.joblib
+      DATABASE_URL: postgresql+psycopg2://risk_user:risk_password@postgres:5432/riskdb
+      REQUIRE_API_KEY: "true"
+      API_KEY: ${API_KEY:-change-me-before-production}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      postgres:
+        condition: service_healthy
+      trainer:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    volumes:
+      - model_artifacts:/app/models:ro
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./monitoring/otel-collector.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./monitoring/tempo.yml:/etc/tempo.yml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"
+
+  prometheus:
+    image: prom/prometheus:latest
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:
+  model_artifacts:
+  training_data:
+  tempo_data:

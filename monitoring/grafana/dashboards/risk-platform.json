@@ -1,0 +1,17 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {"type":"stat","title":"Predictions / min","targets":[{"expr":"sum(rate(risk_platform_predictions_total[1m])) * 60"}],"gridPos":{"h":8,"w":8,"x":0,"y":0}},
+    {"type":"stat","title":"Max feature PSI","targets":[{"expr":"risk_platform_max_feature_psi"}],"gridPos":{"h":8,"w":8,"x":8,"y":0}},
+    {"type":"timeseries","title":"Prediction latency p95","targets":[{"expr":"histogram_quantile(0.95, sum(rate(risk_platform_prediction_latency_seconds_bucket[5m])) by (le))"}],"gridPos":{"h":8,"w":8,"x":16,"y":0}},
+    {"type":"timeseries","title":"Decisions","targets":[{"expr":"sum(rate(risk_platform_predictions_total[5m])) by (decision)"}],"gridPos":{"h":10,"w":12,"x":0,"y":8}},
+    {"type":"timeseries","title":"Risk score distribution","targets":[{"expr":"sum(rate(risk_platform_risk_probability_bucket[5m])) by (le)"}],"gridPos":{"h":10,"w":12,"x":12,"y":8}}
+  ],
+  "schemaVersion": 39,
+  "tags": ["mlops", "risk", "ai"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "title": "Enterprise AI Risk Decision Platform",
+  "version": 1
+}

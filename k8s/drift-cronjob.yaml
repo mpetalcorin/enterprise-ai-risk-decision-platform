@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: risk-drift-check
+  namespace: enterprise-risk
+spec:
+  schedule: "15 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: drift-check
+              image: ghcr.io/OWNER/enterprise-ai-risk-decision-platform:latest
+              command: ["python", "-m", "risk_platform.cli", "drift", "--input", "/data/recent_inference.csv", "--output", "/reports/drift_report.json"]
+              envFrom:
+                - configMapRef:
+                    name: risk-api-config
+                - secretRef:
+                    name: risk-api-secrets

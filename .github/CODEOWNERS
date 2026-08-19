@@ -1,0 +1,5 @@
+# Replace @OWNER with the accountable service team/repository owner.
+* @OWNER
+/src/risk_platform/models/ @OWNER
+/k8s/ @OWNER
+/.github/workflows/ @OWNER

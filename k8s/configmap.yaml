@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: risk-api-config
+  namespace: enterprise-risk
+data:
+  APP_ENV: production
+  LOG_LEVEL: INFO
+  MODEL_PATH: /models/risk_model.joblib
+  REQUIRE_API_KEY: "true"
+  MLFLOW_TRACKING_URI: http://mlflow:5000
+  MLFLOW_EXPERIMENT: enterprise-risk-platform
+  MLFLOW_REGISTERED_MODEL: enterprise-risk-model

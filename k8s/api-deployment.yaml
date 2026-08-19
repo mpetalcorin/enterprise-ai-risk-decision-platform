@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: risk-api
+  namespace: enterprise-risk
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: risk-api
+  template:
+    metadata:
+      labels:
+        app: risk-api
+    spec:
+      initContainers:
+        - name: fetch-approved-model
+          image: ghcr.io/OWNER/enterprise-ai-risk-decision-platform:latest
+          command: ["sh", "-c"]
+          args:
+            - >-
+              for i in $(seq 1 30); do
+                python -m risk_platform.cli fetch-model
+                --tracking-uri "$MLFLOW_TRACKING_URI"
+                --model-name "$MLFLOW_REGISTERED_MODEL"
+                --alias champion
+                --output /models/risk_model.joblib && exit 0;
+                echo "approved model not available yet, retrying"; sleep 10;
+              done; exit 1
+          envFrom:
+            - configMapRef:
+                name: risk-api-config
+          volumeMounts:
+            - name: model
+              mountPath: /models
+      containers:
+        - name: api
+          image: ghcr.io/OWNER/enterprise-ai-risk-decision-platform:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: risk-api-config
+            - secretRef:
+                name: risk-api-secrets
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+          volumeMounts:
+            - name: model
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: model
+          emptyDir: {}

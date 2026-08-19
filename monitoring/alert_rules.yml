@@ -1,0 +1,24 @@
+groups:
+  - name: risk-platform
+    rules:
+      - alert: RiskApiDown
+        expr: up{job="risk-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Risk API is unavailable"
+      - alert: ElevatedManualReviewRate
+        expr: sum(rate(risk_platform_predictions_total{decision="manual_review"}[10m])) / clamp_min(sum(rate(risk_platform_predictions_total[10m])), 0.001) > 0.30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Manual-review rate exceeds 30%"
+      - alert: SignificantFeatureDrift
+        expr: risk_platform_max_feature_psi > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Feature drift PSI exceeds 0.25"
